@@ -1,0 +1,117 @@
+# Query: syscall_whitelist
+# ContextLines: 1
+
+
+
+
+
+
+
+
+
+
+
+vhost_user_fs/src/main.rs:main
+vhost_user_fs/src/main.rs:run
+vhost_user_fs/src/main.rs:real_main  
+seccomp_filter
+syscall_whitelist()
+vhost_user_fs\src\securecomputing.rs:
+   16  
+   17: fn syscall_whitelist() -> Vec<i64> {
+   18      let mut v = vec![libc::SYS_accept4];
+
+  130      let mut seccomp_filter = SyscallFilter::new(action);
+  131:     let allowed_syscalls = syscall_whitelist();
+  132      for call in allowed_syscalls {
+
+
+
+
+
+
+
+
+
+
+
+
+# pub trait MachineOps
+
+src\main.rs:main
+src\main.rs:run
+src\main.rs:real_main
+MachineOps.register_seccomp
+MachineOps.syscall_whitelist
+machine\src\lib.rs:
+  1443      /// Return the syscall whitelist for seccomp.
+  1444:     fn syscall_whitelist(&self) -> Vec<BpfRule>;
+  1445  
+
+  1448          let mut seccomp_filter = SyscallFilter::new(SeccompOpt::Trap);
+  1449:         let mut bpf_rules = self.syscall_whitelist();
+  1450          if balloon_enable {
+
+
+
+src\main.rs:main
+src\main.rs:run
+src\main.rs:real_main
+MachineOps.register_seccomp
+# impl MachineOps for StdMachine
+machine\src\standard_vm\x86_64\mod.rs:
+  444  
+  445:     fn syscall_whitelist(&self) -> Vec<BpfRule> {
+  446:         syscall_whitelist()
+  447      }
+machine\src\standard_vm\x86_64\syscall.rs:
+  61  /// To reduce performance losses, the syscall rules is ordered by frequency.
+  62: pub fn syscall_whitelist() -> Vec<BpfRule> {
+  63      vec![
+
+
+
+MachineOps.register_seccomp
+
+impl LightMachine
+machine\src\micro_vm\mod.rs:
+  746  
+  747:     fn syscall_whitelist(&self) -> Vec<BpfRule> {
+  748:         syscall_whitelist()
+  749      }
+machine\src\micro_vm\syscall.rs:
+  55  /// To reduce performance losses, the syscall rules is ordered by frequency.
+  56: pub fn syscall_whitelist() -> Vec<BpfRule> {
+  57      vec![
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+machine\src\standard_vm\aarch64\mod.rs:
+  521  
+  522:     fn syscall_whitelist(&self) -> Vec<BpfRule> {
+  523:         syscall_whitelist()
+  524      }
+machine\src\standard_vm\aarch64\syscall.rs:
+  61  /// To reduce performance losses, the syscall rules is ordered by frequency.
+  62: pub fn syscall_whitelist() -> Vec<BpfRule> {
+  63      vec![
