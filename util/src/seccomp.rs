@@ -164,6 +164,7 @@ pub enum SeccompOpt {
     /// Kill the task immediately.
     Kill,
     /// Disallow and force a SIGSYS.
+    // SIGSYS 为 系统调用异常信号
     Trap,
     /// Returns an errno.
     Errno(u32),
@@ -205,10 +206,12 @@ struct SeccompData {
 }
 
 impl SeccompData {
+    // 返回0
     fn nr() -> u32 {
         offset_of!(SeccompData, nr) as u32
     }
 
+    // 返回4
     fn arch() -> u32 {
         offset_of!(SeccompData, arch) as u32
     }
@@ -275,11 +278,13 @@ fn validate_architecture() -> Vec<SockFilter> {
 }
 
 /// Create a bpf-filter rule to get the syscall number from `SeccompData`.
+// 最为前置的指令，获取系统调用的调用号
 fn examine_syscall() -> Vec<SockFilter> {
     vec![bpf_stmt(BPF_LD + BPF_W + BPF_ABS, SeccompData::nr())]
 }
 
 /// Create a bpf-filter rule for handle syscall undefined rule.
+// 所以对于白名单里面没有定义的syscall，将会跳转到这里来
 fn handle_process(opt: SeccompOpt) -> Vec<SockFilter> {
     vec![bpf_stmt(BPF_RET + BPF_K, opt.into())]
 }
@@ -325,6 +330,7 @@ impl BpfRule {
 
         // Create a bpf_filter to limit args in syscall.
         let constraint_filter = match cmp {
+            // args_value会和BPF虚拟机的accumulator进行比较
             SeccompCmpOpt::Eq => bpf_jump(BPF_JMP + BPF_JEQ + BPF_K, args_value, 0, 1),
             SeccompCmpOpt::Ne => bpf_jump(BPF_JMP + BPF_JEQ + BPF_K, args_value, 1, 0),
             SeccompCmpOpt::Ge => bpf_jump(BPF_JMP + BPF_JGE + BPF_K, args_value, 0, 1),
@@ -343,6 +349,7 @@ impl BpfRule {
 
     /// Change `BpfRules` to a list of `SockFilter`. It will be used when
     /// seccomp taking effect.
+    // 将header_rule,inner_rules,tail_rule组合成一个大数组
     fn as_vec(&mut self) -> Vec<SockFilter> {
         let mut bpf_filters = vec![self.header_rule];
         bpf_filters.append(&mut self.inner_rules);
@@ -350,6 +357,7 @@ impl BpfRule {
         bpf_filters
     }
 
+    // caller pub fn add_constraint(mut self, cmp: SeccompCmpOpt, args_num: u32, args_value会和: u32)
     /// Add bpf_filters to `inner_rules`.
     fn append(&mut self, bpf_filters: &mut Vec<SockFilter>) {
         let offset = bpf_filters.len() as u8;
@@ -418,6 +426,7 @@ impl SyscallFilter {
         let bpf_prog_ptr = &prog as *const SockFProg;
 
         // Use seccomp(2) to make bpf rules take effect.
+        // 通过syscall系统调用,调用seccomp
         let ret = unsafe {
             libc::syscall(
                 libc::SYS_seccomp,

@@ -48,6 +48,7 @@ macro_rules! __offset_of {
 ///     assert_eq!(offset_of!(Rectangle, width), 8);
 /// }
 /// ```
+// 计算结构体内某个字段的偏移量offset(以字节为单位)
 #[macro_export]
 macro_rules! offset_of {
     ($type_name:ty, $field:ident) => { $crate::__offset_of!($type_name, $field) };
