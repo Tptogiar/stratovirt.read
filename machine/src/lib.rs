@@ -1445,6 +1445,7 @@ pub trait MachineOps {
 
     /// Register seccomp rules in syscall whitelist to seccomp.
     fn register_seccomp(&self, balloon_enable: bool) -> Result<()> {
+        // new里面给sock_filters做了validate_architecture examine_syscall
         let mut seccomp_filter = SyscallFilter::new(SeccompOpt::Trap);
         let mut bpf_rules = self.syscall_whitelist();
         if balloon_enable {
@@ -1456,11 +1457,12 @@ pub trait MachineOps {
                 coverage_allow_list(&mut bpf_rules);
             }
         }
-
+        // sock_filters里面添加syscall_whitelist
         for bpf_rule in &mut bpf_rules {
             seccomp_filter.push(bpf_rule);
         }
         seccomp_filter
+        // realize里面给sock_filters做了handle_process
             .realize()
             .with_context(|| "Failed to init seccomp filter.")?;
         Ok(())

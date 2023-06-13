@@ -50,6 +50,9 @@ const TIOCGWINSZ: u32 = 0x5413;
 const FIONREAD: u32 = 0x541B;
 const FIOCLEX: u32 = 0x5451;
 const FIONBIO: u32 = 0x5421;
+// from linux kernel include\uapi\linux\kvm.h 
+// #define KVM_RUN                   _IO(KVMIO,   0x80)
+// KVM_RUN = 0xAE80
 const KVM_RUN: u32 = 0xae80;
 
 /// Create a syscall whitelist for seccomp.
