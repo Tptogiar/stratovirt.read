@@ -1,0 +1,367 @@
+0x06 -> BPF_RET + BPF_K
+0x15 -> BPF_JMP + BPF_JEQ + BPF_K
+0x20 -> BPF_LD + BPF_W + BPF_ABS
+0x25 -> BPF_JMP + BPF_JGT + BPF_K 
+0x35 -> BPF_JMP + BPF_JGE + BPF_K
+0x7FFF0000 -> SECCOMP_RET_ALLOW
+
+/// Validate the syscall's arch is correct.
+fn validate_architecture() -> Vec<SockFilter> {
+    vec![
+        bpf_stmt(BPF_LD + BPF_W + BPF_ABS, SeccompData::arch()),
+        #[cfg(target_arch = "x86_64")]
+        bpf_jump(BPF_JMP + BPF_JEQ, AUDIT_ARCH_X86_64, 1, 0),
+        #[cfg(target_arch = "aarch64")]
+        bpf_jump(BPF_JMP + BPF_JEQ, AUDIT_ARCH_AARCH64, 1, 0),
+        bpf_stmt(BPF_RET + BPF_K, SECCOMP_RET_KILL),
+    ]
+}
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0004
+Code: 0015  Jump true: 01  Jump false: 00  Generic field: C000003E
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 0000
+
+fn examine_syscall() -> Vec<SockFilter> {
+    vec![bpf_stmt(BPF_LD + BPF_W + BPF_ABS, SeccompData::nr())]
+}
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0000
+
+
+linux-6.3.2\arch\x86\entry\syscalls\syscall_64.tbl
+
+BpfRule::new(libc::SYS_read),
+0x00 -> read
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0000
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+BpfRule::new(libc::SYS_readv),
+0x13 -> readv
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0013
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+BpfRule::new(libc::SYS_write),
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0001
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+BpfRule::new(libc::SYS_writev),
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0014
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+pub fn new(syscall_num: i64) -> BpfRule {
+    BpfRule {
+        // 0x15
+        header_rule: bpf_jump(BPF_JMP + BPF_JEQ + BPF_K, syscall_num as u32, 0, 1),
+        inner_rules: Vec::new(),
+        tail_rule: bpf_stmt(BPF_RET + BPF_K, SECCOMP_RET_ALLOW),
+    }
+}
+0x16 -> ioctl
+0x15 -> BPF_JMP + BPF_JEQ + BPF_K
+Code: 0015  Jump true: 00  Jump false: 70  Generic field: 0010
+
+
+
+
+
+
+0x20 -> BPF_LD + BPF_W + BPF_ABS  
+get args in `SeccompData`  
+获取系统调用的真实参数值，放进BPF虚拟机的累加器内
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+0x15 -> BPF_JMP + BPF_JEQ + BPF_K
+0x5401 -> 第一个add_constraint的参数TCGETS
+limit args in syscall    
+将指令中的Generic field与累加器中的值(系统调用的真实参数值) 做比较
+相等则执行下一条指令，不相等则跳过1条指令
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 5401
+0x06 -> BPF_RET + BPF_K
+bpf_stmt(BPF_RET + BPF_K, SECCOMP_RET_ALLOW),
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+0x20 -> BPF_LD + BPF_W + BPF_ABS
+获取系统调用的真实参数值，放进BPF虚拟机的累加器内
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+0x15 -> BPF_JMP + BPF_JEQ + BPF_K
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 5402
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 5413
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 5451
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 5421
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: AE80
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 4018AEE1
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 4008AF60
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 4004AF61
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 4008AF21
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 4008AF10
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 4028AF11
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 4008AF12
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: C008AF12
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 4008AF20
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: AF01
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 4008AF00
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 4008AF03
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 4008AF30
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 800454CF
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 400454CA
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 400454D0
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 400454D8
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: AE00
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 8004AE98
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 8040AE9F
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 8070AE9F
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 8030AE7C
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: C208AE62
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 8090AE81
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 8138AE83
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 9000AEA4
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 8138AE83
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 8080AEA1
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 8188AEA6
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 8400AE8E
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: C008AE88
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+
+if self.inner_rules.is_empty() {
+    // 0x20
+    self.tail_rule = bpf_stmt(BPF_LD + BPF_W + BPF_ABS, SeccompData::nr());
+}
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0000
+
+
+#[cfg(not(all(target_env = "gnu", target_arch = "x86_64")))]
+BpfRule::new(libc::SYS_epoll_pwait),
+#[cfg(all(target_env = "gnu", target_arch = "x86_64"))]
+BpfRule::new(libc::SYS_epoll_wait),
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 00E8
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 00D0
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 00D1
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 00CF
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 01AA
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 01A9
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 01AB
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0020
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0003
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0122
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 00E9
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 004B
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 002F
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 002E
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 002D
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0019
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 00CE
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 000C
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 0A  Generic field: 0048
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0406
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0002
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0001
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0049
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 000E
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0002
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0101
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0083
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0009
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 000B
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0120
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0008
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 13  Generic field: 00CA
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0189
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0081
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0080
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0084
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0085
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0018
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0089
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 003C
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 00E7
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 000F
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 00EA
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 00BA
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0027
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0005
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0011
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0127
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0012
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0128
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 014C
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0106
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0057
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0053
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0059
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 013E
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 011D
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0015  Jump true: 00  Jump false: 0A  Generic field: 001C
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0020
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0004
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0020
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0003
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0020
+Code: 0015  Jump true: 00  Jump false: 01  Generic field: 0009
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 7FFF0000
+Code: 0020  Jump true: 00  Jump false: 00  Generic field: 0000
+Code: 0006  Jump true: 00  Jump false: 00  Generic field: 30000
