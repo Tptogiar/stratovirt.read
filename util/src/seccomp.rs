@@ -216,6 +216,7 @@ impl SeccompData {
         offset_of!(SeccompData, arch) as u32
     }
 
+    // 获取系统调用的第num个参数的值
     fn args(num: u32) -> u32 {
         let offset_of_u64 =
             offset_of!(SeccompData, args) - offset_of!(SeccompData, instruction_pointer);
@@ -307,10 +308,12 @@ impl BpfRule {
     /// * `syscall_num` - the number of system call.
     pub fn new(syscall_num: i64) -> BpfRule {
         BpfRule {
+            // 0x15
             // 如果inner_rules是空的，相当于只要系统调用号对的上就允许，
             // 如果inner_rules不为空，则还需要参数在白名单内才允许
             header_rule: bpf_jump(BPF_JMP + BPF_JEQ + BPF_K, syscall_num as u32, 0, 1),
             inner_rules: Vec::new(),
+            // 0x06
             // 0x06
             tail_rule: bpf_stmt(BPF_RET + BPF_K, SECCOMP_RET_ALLOW),
         }
@@ -333,13 +336,19 @@ impl BpfRule {
         }
 
         // Create a bpf_filter to get args in `SeccompData`.
+        // 0x20  SeccompData::args(args_num) -> 0x18
         let args_filter = bpf_stmt(BPF_LD + BPF_W + BPF_ABS, SeccompData::args(args_num));
 
         // Create a bpf_filter to limit args in syscall.
         let constraint_filter = match cmp {
             // args_value会和BPF虚拟机的accumulator进行比较
+            // 这里bpf_jump(BPF_JMP + BPF_JEQ + BPF_K, args_value, 0, 1)中“BPF_JMP + BPF_JEQ + BPF_K”表
+            // 示该指令为JMP指令，
+            // 0x15
             SeccompCmpOpt::Eq => bpf_jump(BPF_JMP + BPF_JEQ + BPF_K, args_value, 0, 1),
+            // 0x15
             SeccompCmpOpt::Ne => bpf_jump(BPF_JMP + BPF_JEQ + BPF_K, args_value, 1, 0),
+            // 0x35
             SeccompCmpOpt::Ge => bpf_jump(BPF_JMP + BPF_JGE + BPF_K, args_value, 0, 1),
             SeccompCmpOpt::Gt => bpf_jump(BPF_JMP + BPF_JGT + BPF_K, args_value, 0, 1),
             SeccompCmpOpt::Le => bpf_jump(BPF_JMP + BPF_JGE + BPF_K, args_value, 1, 0),
@@ -347,8 +356,10 @@ impl BpfRule {
         };
 
         self.append(&mut vec![
+            // 因为每次在把真实的syscall的参数和期待值args_value做比较时，会把BPF虚拟机中的累加器
             args_filter,
             constraint_filter,
+            // 0x06
             bpf_stmt(BPF_RET + BPF_K, SECCOMP_RET_ALLOW),
         ]);
         self
@@ -419,7 +430,7 @@ impl SyscallFilter {
         self.sock_filters.append(&mut handle_process(self.opt));
 
         let sock_bpf_vec = self.sock_filters;
-
+        
         // This operation can guarantee seccomp make use for all users and subprocess.
         let ret = unsafe { libc::prctl(libc::PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) };
         if ret != 0 {
