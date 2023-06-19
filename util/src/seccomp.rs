@@ -307,8 +307,11 @@ impl BpfRule {
     /// * `syscall_num` - the number of system call.
     pub fn new(syscall_num: i64) -> BpfRule {
         BpfRule {
+            // 如果inner_rules是空的，相当于只要系统调用号对的上就允许，
+            // 如果inner_rules不为空，则还需要参数在白名单内才允许
             header_rule: bpf_jump(BPF_JMP + BPF_JEQ + BPF_K, syscall_num as u32, 0, 1),
             inner_rules: Vec::new(),
+            // 0x06
             tail_rule: bpf_stmt(BPF_RET + BPF_K, SECCOMP_RET_ALLOW),
         }
     }
@@ -322,6 +325,10 @@ impl BpfRule {
     ///                  used with `cmp` together.
     pub fn add_constraint(mut self, cmp: SeccompCmpOpt, args_num: u32, args_value: u32) -> BpfRule {
         if self.inner_rules.is_empty() {
+            // 0x20
+            // 这里读取syscall number是因为BpfRule在new的时候，header_rule是直接判断syscall的，
+            // 在inner_rules中又把BPF虚拟机的累加器用于存syscall的参数了，而下一条header_rule
+            // 没有重新读取syscall number，为了衔接下一条BpfRule，所以需要在最后重新读取syscall number
             self.tail_rule = bpf_stmt(BPF_LD + BPF_W + BPF_ABS, SeccompData::nr());
         }
 
